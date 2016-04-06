@@ -1,0 +1,7 @@
+We began the project by reading all of the provided resources -- mainly the Flex guidelines. Afterwards, we went through the list of tokens in scanner.h and created rules for them one by one in scanner.l. 
+
+We began with the simplest cases in order to get a feel for how flex interacts wit the scanner methods. By filling out the keyword tokens first, we were able to get an idea of how to tackle the more complicated tokens (identifiers and constants, and comments).
+
+For the dot and field selection token, we decided to use a boolean to keep track of when a dot has been read in order to know when to return a field selection token instead of just returning an identifier. The hard part in figuring this out was that once the scanner reached a field selection, the dot had already been read and it wasn't clear how the scanner would keep track of it. By using a boolean we were able to maintain the "dot" state. Then, in the identifier rule, we simply check if we just read a dot and decide whether to return an identifier or the field selection.
+
+After we got the basic ideas of each token down, we started to add in the restrictions and errors to our rules. 

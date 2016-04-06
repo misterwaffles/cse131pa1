@@ -47,6 +47,7 @@ static void DoBeforeEachAction();
 #define YY_USER_ACTION DoBeforeEachAction();
 
 int currentLineNum, currentColNum;
+bool readDot = false;
 
 %}
 
@@ -58,16 +59,131 @@ int currentLineNum, currentColNum;
   */
 
 BOOLEAN   (true|false)
+DIGIT		([0-9])
+DECIMAL		([0-9]*\.[0-9]+)
+NONDIGIT	([_A-Za-z])
 
 %x ML_COMMENT
 %%             /* BEGIN RULES SECTION */
  /* All patterns and actions should be placed between the start and stop
   * %% markers which delimit the Rules section. 
   */ 
+void 			{return T_Void;}
+[\n]			{currentLineNum++; currentColNum = 1;}
+[\t]			{ currentColNum += 8 - ((currentColNum -1) % 8); }
+[' ']			{ readDot = false; }
+"bool"			{return T_Bool; }
+"float"			{return T_Float; }
+"int"			{return T_Int; }
+"uint"			{return T_Uint; }
+"vec2"			{return T_Vec2; }
+"vec3"			{return T_Vec3; }
+"vec4"			{return T_Vec4; }
+"ivec2"			{return T_Ivec2; }
+"ivec3"			{return T_Ivec3; }
+"ivec4"			{return T_Ivec4; }
+"bvec2"			{return T_Bvec2; }
+"bvec3"			{return T_Bvec3; }
+"bvec4"			{return T_Bvec4; }
+"uvec2"			{return T_Uvec2; }
+"uvec3"			{return T_Uvec3; }
+"uvec4"			{return T_Uvec4; }
+"mat2"			{return T_Mat2;	}
+"mat3"			{return T_Mat3; }
+"mat4"			{return T_Mat4; }
+"struct"		{return T_Struct; }
+"in"			{return T_In; }
+"out"			{return T_Out; }
+"const"			{return T_Const; }
+"uniform"		{return T_Uniform; }
+"while"			{return T_While; }
+"break"			{return T_Break; }
+"continue"		{return T_Continue; }
+"do"			{return T_Do; }
+"else"			{return T_Else; }
+"for"			{return T_For; }
+"if"			{return T_If; }
+"return"		{return T_Return; }
+"switch"		{return T_Switch; }
+"case"			{return T_Case; }
+"default"		{return T_Default; }
+ /* BOOLEAN CONSTANT */
+{BOOLEAN} 		{
+				if (!string(yytext).compare("true"))
+					yylval.boolConstant = true;
+				else yylval.boolConstant = false;
 
-[\n]		{currentLineNum++; currentColNum = 1;}
+				return T_BoolConstant; 
+			}
+ /* FIELD SELECTION 
+\.({NONDIGIT}+({DIGIT}|{NONDIGIT})*) 		{
+				return T_FieldSelection;
+			}
+*/
+ /* IDENTIFIER */
+({NONDIGIT}+({DIGIT}|{NONDIGIT})*) 		{
+				if(yyleng > 1023) {
+					ReportError::LongIdentifier(&yylloc, yytext);
+				}
 
-void 		{return T_Void;}
+				strncpy(yylval.identifier, yytext, MaxIdentLen);
+
+				if (readDot) {
+					readDot = false;
+					return T_FieldSelection;
+				}
+				else return T_Identifier;
+			}
+ /* INTEGER CONSTANT */
+{DIGIT}+		{
+				yylval.integerConstant = strtol(yytext, NULL, 10);
+				return T_IntConstant; 
+			} 
+ /* UNSIGNED INTEGER CONSTANT */
+{DIGIT}+[u|U]		{
+				yylval.integerConstant = strtol(yytext, NULL, 10);
+				return T_UintConstant; 
+			} 
+ /* FLOAT CONSTANT */
+({DECIMAL}[f|F]?)|({DIGIT}+[E|e]-?{DIGIT}+)|({DECIMAL}[E|e]-?{DIGIT}+) {
+				yylval.floatConstant = strtod(yytext, NULL);
+				return T_FloatConstant; 
+			}
+"++"			{return T_Inc; }
+"--"			{return T_Dec; }
+"<="			{return T_LessEqual; }
+">="			{return T_GreaterEqual; }
+"=="			{return T_EQ; }
+"!="			{return T_NE; }
+"&&"			{return T_And; }
+"||"			{return T_Or; }
+"*="			{return T_MulAssign; }
+"/="			{return T_DivAssign; }
+"+="			{return T_AddAssign; }
+"-="			{return T_SubAssign; }
+"("			{return T_LeftParen; }
+")"			{return T_RightParen; }
+"["			{return T_LeftBracket; }
+"]"			{return T_RightBracket; }
+"{"			{return T_LeftBrace; }
+"}"			{return T_RightBrace; }
+"."			{readDot = true; return T_Dot; }
+":"			{return T_Colon; }
+"="			{return T_Equal; }
+";"			{return T_Semicolon; }
+"-"			{return T_Dash; }
+"+"			{return T_Plus; }
+"*"			{return T_Star; }
+"/"			{return T_Slash; }
+"<"			{return T_LeftAngle; }
+">"			{return T_RightAngle; }
+"?"			{return T_Question; }
+.			{ 
+				ReportError::UnrecogChar(&yylloc, yytext[0]);
+
+			}
+(\/\/.*\n)		{ }
+(\/\*.*\*\/)		{ currentColNum -= yyleng - 1; }
 
 %%
 
