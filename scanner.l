@@ -63,11 +63,26 @@ DIGIT		([0-9])
 DECIMAL		([0-9]*\.[0-9]+)
 NONDIGIT	([_A-Za-z])
 
-%x ML_COMMENT
+%x ML_COMMENT COMMENT
 %%             /* BEGIN RULES SECTION */
  /* All patterns and actions should be placed between the start and stop
   * %% markers which delimit the Rules section. 
   */ 
+ /* Single Line Comment */
+
+"//"			{ BEGIN(COMMENT);}
+<COMMENT>[^*\n]*
+<COMMENT>[\n]		{ currentLineNum++; currentColNum = 1; BEGIN(INITIAL); }
+
+
+ /* Single Line Comment */
+"/*"			{ BEGIN(ML_COMMENT); }
+<ML_COMMENT>"\n"	{ currentLineNum++; }
+<ML_COMMENT>[^\n]*"*/"	{ currentColNum--; BEGIN(INITIAL); }
+<ML_COMMENT><<EOF>>	{ ReportError::UntermComment(); return 0;}
+<ML_COMMENT>[^*\n]*
+<ML_COMMENT>"*"+[^*/\n]* { currentColNum--; }
+
 void 			{return T_Void;}
 [\n]			{currentLineNum++; currentColNum = 1;}
 [\t]			{ currentColNum += 8 - ((currentColNum -1) % 8); }
@@ -75,7 +90,7 @@ void 			{return T_Void;}
 "bool"			{return T_Bool; }
 "float"			{return T_Float; }
 "int"			{return T_Int; }
-"uint"			{return T_Uint; }
+"unsigned int"		{return T_Uint; }
 "vec2"			{return T_Vec2; }
 "vec3"			{return T_Vec3; }
 "vec4"			{return T_Vec4; }
@@ -115,11 +130,6 @@ void 			{return T_Void;}
 
 				return T_BoolConstant; 
 			}
- /* FIELD SELECTION 
-\.({NONDIGIT}+({DIGIT}|{NONDIGIT})*) 		{
-				return T_FieldSelection;
-			}
-*/
  /* IDENTIFIER */
 ({NONDIGIT}+({DIGIT}|{NONDIGIT})*) 		{
 				if(yyleng > 1023) {
@@ -182,8 +192,6 @@ void 			{return T_Void;}
 				ReportError::UnrecogChar(&yylloc, yytext[0]);
 
 			}
-(\/\/.*\n)		{ }
-(\/\*.*\*\/)		{ currentColNum -= yyleng - 1; }
 
 %%
 
